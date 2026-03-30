@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+
+typedef enum {
+    E0, E1, E2, E3, E4, E5, E6, E7, DEAD
+} State;
+
+typedef enum {
+    NUMEROS, PONTO, SOMA, MENOS, EZAO, INVALIDO
+} Symbol;
+
+/* Classifica os  caracteres */
+static Symbol classify(unsigned char ch) {
+    if (ch >= '0' && ch <= '9') return NUMEROS;
+    if (ch == '.') return PONTO;
+    if (ch == '+') return SOMA;
+    if (ch == '-') return MENOS;
+    if (ch == 'E') return EZAO;
+    return INVALIDO;
+}
+
+/* Função de transição*/
+static State step(State s, Symbol a) {
+    switch (s) {
+        case E0:
+            if (a == NUMEROS)   return E3;
+            if (a == PONTO) return E2;
+            if (a == SOMA || a == MENOS) return E1;
+            return DEAD;
+
+        case E1:
+            if (a == NUMEROS)   return E3;
+            if (a == PONTO) return E2;
+            return DEAD;
+
+        case E2:
+            if (a == NUMEROS)   return E4;
+            return DEAD;
+
+        case E3:
+            if (a == NUMEROS)   return E3;
+            if (a == PONTO) return E4;
+            if (a == EZAO)   return E5;
+            return DEAD;
+
+        case E4:
+            if (a == NUMEROS)   return E4;
+            if (a == EZAO)   return E5;
+            return DEAD;
+
+        case E5:
+            if (a == NUMEROS)   return E7;
+            if (a == SOMA || a == MENOS) return E6;
+            return DEAD;
+
+        case E6:
+            if (a == NUMEROS)   return E7;
+            return DEAD;
+
+        case E7:
+            if (a == NUMEROS)   return E7;
+            return DEAD;
+
+        default:
+            return DEAD;
+    }
+}
+
+static int is_final(State s) {
+    return (s == E3 || s == E4 || s == E7);
+}
+
+
+/* Reconhecedor: retorna 1 se aceita, 0 se rejeita */
+int automato(const char *entrada) {
+    if (!entrada) return 0;
+
+    State s = E0;
+    int tem_token = 0; /* verificar se está vazio */
+
+    for (size_t i = 0; entrada[i] != '\0'; i++) {
+        unsigned char ch = (unsigned char)entrada[i];
+
+        /* ignora espaços e quebras de linha */
+        if (isspace(ch)) continue;
+
+        tem_token = 1; /* Não está vazio =1*/
+
+        Symbol a = classify(ch);
+        if (a == INVALIDO) return 0;   /* símbolo fora do alfabeto rejeita */
+
+        s = step(s, a);
+        if (s == DEAD) return 0;
+    }
+
+    if (!tem_token) return 0;            /* entrada vazia =0 */
+    return is_final(s);
+}
+
+int main(void) {
+    char buf[1024];
+
+    puts("Digite uma palavra (ex: -12, +.5, 12., 3.14, 1E2, 1.2E-3).");
+
+    while (fgets(buf, sizeof buf, stdin)) {
+        if (automato(buf)) puts("ACEITA");
+        else puts("REJEITA");
+    }
+
+    return 0;
+}
